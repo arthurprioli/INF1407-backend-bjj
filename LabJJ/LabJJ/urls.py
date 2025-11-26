@@ -58,4 +58,5 @@ urlpatterns = [
         ),
         name="openapi-schema",
     ),
+    path('accounts/', include('accounts.urls'), name = 'accounts'),
 ]
