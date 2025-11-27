@@ -1,168 +1,97 @@
-from django.shortcuts import render
-from posicoes.serializers import BJJPosSerializer
-from posicoes.models import BJJPos
 from rest_framework.views import APIView
+from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from posicoes.serializers import BJJPosSerializer
+from posicoes.models import BJJPos
+from posicoes.permissions import IsAdmin
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 
 class PosicaoView(APIView):
+    authentication_classes = [TokenAuthentication]
+
+    def get_permissions(self):
+        """GET → qualquer logado | POST/PUT → apenas admin"""
+        if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            return [IsAdmin()]
+        return [IsAuthenticated()]
+
+    # ESSA LINHA É OBRIGATÓRIA!
+    permission_classes = property(get_permissions)
 
     @swagger_auto_schema(
-        operation_summary="Recupera uma posição específica ou todas as posições",
-        operation_description="Se a URL incluir um ID, retorna a posição correspondente; caso contrário, retorna todas as posições.",
-        responses={
-            200: openapi.Response("Sucesso", BJJPosSerializer(many=True)),
-            404: "Posição não encontrada",
-        },
+        operation_summary="Recupera uma posição específica ou todas",
+        responses={200: BJJPosSerializer(many=True), 404: "Não encontrada"}
     )
-    def get(self, req, id_arg=None):
-        """
-        Recupera uma posição de BJJ por ID ou lista todas as posições.
-
-        :param req: Objeto Request do DRF.
-        :param id_arg: ID da posição a ser recuperada (opcional, padrão: None).
-        :return: Response com a posição única ou a lista de posições.
-        :rtype: rest_framework.response.Response
-        """
-        if id_arg is not None:
+    def get(self, request, id_arg=None):
+        if id_arg:
             try:
-                queryset = BJJPos.objects.get(id=id_arg)
-                serializer = BJJPosSerializer(queryset)
-                return Response(serializer.data)
+                pos = BJJPos.objects.get(id=id_arg)
+                return Response(BJJPosSerializer(pos).data)
             except BJJPos.DoesNotExist:
-                return Response(
-                    {"msg": f"Posição com id #{id_arg} não existe"},
-                    status.HTTP_404_NOT_FOUND,
-                )
-        queryset = BJJPos.objects.all().order_by("nome_pt")
-        serializer = BJJPosSerializer(queryset, many=True)
-        return Response(serializer.data)
+                return Response({"msg": f"Posição {id_arg} não existe"}, status.HTTP_404_NOT_FOUND)
+
+        posicoes = BJJPos.objects.all().order_by("nome_pt")
+        return Response(BJJPosSerializer(posicoes, many=True).data)
 
     @swagger_auto_schema(
-        operation_summary="Cria uma nova posição de jiu-jitsu",
-        operation_description="Adiciona uma nova posição ao banco de dados.",
+        operation_summary="Cria nova posição (apenas admin)",
         request_body=BJJPosSerializer,
-        responses={
-            201: openapi.Response("Criado com sucesso", BJJPosSerializer),
-            400: "Dados inválidos",
-        },
+        responses={201: BJJPosSerializer}
     )
-    def post(self, req):
-        """
-        Cria uma nova posição de BJJ.
-
-        Os dados da posição devem ser passados no corpo da requisição.
-
-        :param req: Objeto Request do DRF contendo os dados da posição.
-        :return: Response com a posição criada e status 201, ou erros de validação e status 400.
-        :rtype: rest_framework.response.Response
-        """
-        serializer = BJJPosSerializer(data=req.data)
+    def post(self, request):
+        serializer = BJJPosSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status.HTTP_201_CREATED)
-        else:
-            return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
-        operation_summary="Atualiza uma posição existente",
-        operation_description="Atualiza completamente os dados de uma posição com o ID de caminho fornecido.",
-        request_body=BJJPosSerializer,
-        responses={
-            200: openapi.Response("Atualizado com sucesso", BJJPosSerializer),
-            400: "Dados inválidos",
-            404: "Posição não encontrada",
-        },
+        operation_summary="Atualiza posição (apenas admin)",
+        request_body=BJJPosSerializer
     )
-    def put(self, req, id_arg):
-        """
-        Atualiza completamente uma posição de BJJ existente.
-
-        :param req: Objeto Request do DRF contendo os novos dados da posição.
-        :param id_arg: ID da posição a ser atualizada.
-        :return: Response com os dados atualizados e status 200, ou erros de validação/posição não encontrada.
-        :rtype: rest_framework.response.Response
-        """
+    def put(self, request, id_arg):
         try:
-            posicao = BJJPos.objects.get(id=id_arg)
+            pos = BJJPos.objects.get(id=id_arg)
         except BJJPos.DoesNotExist:
-            return Response(
-                {"msg": f"Posição com id #{id_arg} não existe"},
-                status.HTTP_404_NOT_FOUND,
-            )
+            return Response({"msg": f"Posição {id_arg} não existe"}, status.HTTP_404_NOT_FOUND)
 
-        serializer = BJJPosSerializer(posicao, data=req.data)
+        serializer = BJJPosSerializer(pos, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status.HTTP_200_OK)
-        else:
-            return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.data)
+        return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
 
 
-# Create your views here.
 class PosicoesView(APIView):
-    @swagger_auto_schema(
-        operation_summary="Lista todas as posições de jiu-jitsu",
-        operation_description="Obtem informações sobre todas as posições",
-        request_body=None,
-        responses={200: BJJPosSerializer(many=True)},
-    )
-    def get(self, req):
-        """
-        Lista todas as posições de BJJ ordenadas por nome em português.
+    authentication_classes = [TokenAuthentication]
 
-        Este método é tipicamente mapeado para a rota base (e.g., /posicoes/).
+    def get_permissions(self):
+        return [IsAdmin()] if self.request.method == 'DELETE' else [IsAuthenticated()]
 
-        :param req: Objeto Request do DRF.
-        :return: Response com a lista de todas as posições e status 200.
-        :rtype: rest_framework.response.Response
-        """
+    # ESSA LINHA TAMBÉM É OBRIGATÓRIA!
+    permission_classes = property(get_permissions)
+
+    @swagger_auto_schema(operation_summary="Lista todas as posições")
+    def get(self, request):
         posicoes = BJJPos.objects.all().order_by("nome_pt")
-        serializer = BJJPosSerializer(posicoes, many=True)
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(BJJPosSerializer(posicoes, many=True).data)
 
     @swagger_auto_schema(
-        operation_summary="Deleta múltiplas posições",
-        operation_description="Deleta posições com base em uma lista de IDs fornecida no corpo da requisição.",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_ARRAY,
-            items=openapi.Schema(type=openapi.TYPE_INTEGER),
-            description="Lista de IDs das posições a serem deletadas. Ex: [1, 5, 8]",
-        ),
-        responses={
-            204: "Deletado com sucesso (sem conteúdo)",
-            404: "Um ou mais IDs não foram encontrados",
-        },
+        operation_summary="Deleta múltiplas posições (apenas admin)",
+        request_body=openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_INTEGER))
     )
-    def delete(self, req):
-        """
-        Deleta múltiplas posições de BJJ.
-
-        Espera-se uma lista de IDs no corpo da requisição (JSON array).
-        Se algum ID não for encontrado, retorna 404, listando os IDs problemáticos.
-
-        :param req: Objeto Request do DRF contendo a lista de IDs a serem deletados.
-        :return: Response vazia e status 204 se sucesso, ou status 404 se algum item não for encontrado.
-        :rtype: rest_framework.response.Response
-        """
-        id_erro = ""
-        erro = False
-        for id in req.data:
+    def delete(self, request):
+        erros = []
+        for pos_id in request.data:
             try:
-                posicao = BJJPos.objects.get(id=id)
-                posicao.delete()
+                BJJPos.objects.get(id=pos_id).delete()
             except BJJPos.DoesNotExist:
-                id_erro += str(id) + ", "
-                erro = True
+                erros.append(pos_id)
 
-        if erro:
-            id_erro = id_erro.strip().rstrip(',')
-            return Response(
-                {"Erro": f"item(s) [{id_erro}] não encontrado(s)"}, status.HTTP_404_NOT_FOUND
-            )
-        else:
-            return Response(status=status.HTTP_204_NO_CONTENT)  
+        if erros:
+            return Response({"Erro": f"IDs não encontrados: {erros}"}, status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)

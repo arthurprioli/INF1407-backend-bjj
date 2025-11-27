@@ -11,9 +11,12 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.contrib.auth import login, logout
-#swagger
+
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+
+from accounts.models import UserProfile
+
 # Create your views here.
 
 class CustomAuthToken(ObtainAuthToken):
@@ -47,7 +50,7 @@ class CustomAuthToken(ObtainAuthToken):
                 login(request, user)
                 return Response({'token': token.key})
         return Response(status=status.HTTP_401_UNAUTHORIZED)
-    
+
     @swagger_auto_schema(
         operation_summary='Obtém o username do usuário',
         operation_description="Retorna o username do usuário ou apenas visitante se o usuário nsecurity=[{'Token':[]}]",
@@ -84,7 +87,7 @@ class CustomAuthToken(ObtainAuthToken):
             status=status.HTTP_200_OK)
         except (Token.DoesNotExist, AttributeError):
             return Response({'username': 'visitante'}, status=status.HTTP_404_NOT_FOUND)
-        
+
     @swagger_auto_schema(
         operation_description='Realiza logout do usuário, apagando o seu token',
         operation_summary='Realiza logout',
@@ -119,7 +122,7 @@ class CustomAuthToken(ObtainAuthToken):
             return Response({'msg': 'Logout bem-sucedido.'},status=status.HTTP_200_OK)
         else:
             return Response({'msg': 'Usuário não autenticado.'},status=status.HTTP_403_FORBIDDEN)
-        
+
     @swagger_auto_schema(
         operation_description='Troca a senha do usuário, atualiza o token em caso de sucesso',
         operation_summary='Troca a senha do usuário',
@@ -166,7 +169,7 @@ class CustomAuthToken(ObtainAuthToken):
             # Alterar a senha e atualizar o token
             user.set_password(newPassword)
             user.save()
-            # Atualizar token
+
             try:
                 token = Token.objects.get(user=user)
                 token.delete()
@@ -260,13 +263,13 @@ class Registro(generics.CreateAPIView):
                 {"password_confirm": ["As senhas não coincidem."]},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        if User.object.filter(username=username).exists():
+
+        if User.objects.filter(username=username).exists():
             return Response(
                 {"username": ["Este nome de usuário já existe!"]},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             user = User.objects.create_user(
                 username=username,
@@ -275,17 +278,28 @@ class Registro(generics.CreateAPIView):
             )
             user.save()
 
+            profile, created = UserProfile.objects.get_or_create(
+                user=user,
+                defaults={'role': 'estudante'}
+            )
+
+            if User.objects.count() == 1:
+                profile.role = 'admin'
+                profile.save()
+                print("ADMIN CRIADO!")
+
             token, _ = Token.objects.get_or_create(user=user)
 
             return Response({
-                "token": token,
+                "token": token.key,
                 "user": {
                     "id": user.id,
                     "username": user.username,
-                    "email": user.email or None
+                    "email": user.email or None,
+                    'role': user.userprofile.role
                 }
             }, status=status.HTTP_201_CREATED)
-        
+
         except Exception as e:
             return Response(
                 {"error": "Erro ao criar usuário", "detail":str(e)},
