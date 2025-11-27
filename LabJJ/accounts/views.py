@@ -1,11 +1,14 @@
 from django.shortcuts import render
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 from rest_framework import status
 from rest_framework.views import APIView
+from rest_framework import generics, status
 # Autenticação
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.contrib.auth import login, logout
 #swagger
@@ -174,25 +177,117 @@ class CustomAuthToken(ObtainAuthToken):
         else:
             return Response({"old_password": ["Senha atual incorreta."]}, status=status.HTTP_400_BAD_REQUEST)
 
-class registro(APIView):
+class Registro(generics.CreateAPIView):
     '''
     Permite criar um usuário
     '''
+
+    permission_classes = [AllowAny]  # Qualquer um pode se registrar
+    authentication_classes = []      # Não precisa estar autenticado
+
     @swagger_auto_schema(
-        operation_summary='obter formulário de criação de usuário',
-        operation_description='Retorna o usuário criado',
+        operation_summary="Registrar novo usuário",
+        operation_description="Cria um novo usuário e retorna o token de autenticação",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
+            required=['username', 'password', 'password_confirm'],
             properties={
-                'username': openapi.Schema(type=openapi.TYPE_STRING),
-                'password': openapi.Schema(type=openapi.TYPE_STRING),
+                'username': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description='Nome de usuário único',
+                    example='arthur411'
+                ),
+                'password': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    format=openapi.FORMAT_PASSWORD,
+                    description='Senha do usuário',
+                    example='senha_forte411'
+                ),
+                'password_confirm': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    format=openapi.FORMAT_PASSWORD,
+                    description='Confirmação da senha',
+                    example='senha_forte411'
+                ),
+                'email': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    format=openapi.FORMAT_EMAIL,
+                    description='Email opcional',
+                    example='arthur@email.com'
+                ),
             },
-            required=['username', 'password', ],
         ),
         responses={
-            status.HTTP_200_OK: 'Token is returned.',
-            status.HTTP_401_UNAUTHORIZED: 'Unauthorized request.',
-        },
+            201: openapi.Response(
+                description="Usuário criado com sucesso",
+                examples={
+                    "application/json": {
+                        "token": "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b",
+                        "user": {
+                            "id": 42,
+                            "username": "arthur411",
+                            "email": "arthur@email.com"
+                        }
+                    }
+                }
+            ),
+            400: openapi.Response(
+                description="Erro de validação",
+                examples={
+                    "application/json": {
+                        "username": ["A user with that username already exists."],
+                        "password_confirm": ["As senhas não coincidem."],
+                    }
+                }
+            )
+        }
     )
-    def post(self, req):
-        return
+    def post(self, req, *args, **kwargs):
+        username = req.data.get("username")
+        password = req.data.get("password")
+        password_confirm = req.data.get("password_confirm")
+
+        email = req.data.get("email", "")
+
+        if not username or not password:
+            return Response(
+                {"error": "Usuário e senha são obrigatórios"},
+                status = status.HTTP_400_BAD_REQUEST
+            )
+
+        if password != password_confirm:
+            return Response(
+                {"password_confirm": ["As senhas não coincidem."]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if User.object.filter(username=username).exists():
+            return Response(
+                {"username": ["Este nome de usuário já existe!"]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            user = User.objects.create_user(
+                username=username,
+                password=password,
+                email=email
+            )
+            user.save()
+
+            token, _ = Token.objects.get_or_create(user=user)
+
+            return Response({
+                "token": token,
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email or None
+                }
+            }, status=status.HTTP_201_CREATED)
+        
+        except Exception as e:
+            return Response(
+                {"error": "Erro ao criar usuário", "detail":str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
