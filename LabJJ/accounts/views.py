@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework import generics, status
@@ -16,7 +16,7 @@ from rest_framework.authentication import TokenAuthentication
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from accounts.models import UserProfile
+from accounts.models import UserProfile, PosicaoAprendida
 from accounts.serializers import UserProfileSerializer
 
 # Create your views here.
@@ -338,3 +338,44 @@ class Logged(APIView):
         user = token_obj.user
         profile = UserProfile.objects.get(user=user)
         return Response(UserProfileSerializer(profile, many=False).data)
+
+class GerenciarAprendizado(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_summary="Lista IDs de posições aprendidas",
+        responses={200: "Lista de IDs [1, 2, 3]"}
+    )
+    def get(self, request):
+        user = request.user
+        # values_list com flat=True retorna direto uma lista: [1, 5, 20]
+        posicoes_ids = PosicaoAprendida.objects.filter(user=user).values_list('posicao_id', flat=True)
+        
+        # CORREÇÃO 1: Retorna a lista pura.
+        # Antes retornava um objeto {'posicoes_aprendidas': ...} que o seu Javascript ignorava.
+        return Response(list(posicoes_ids), status=status.HTTP_200_OK)
+    
+    @swagger_auto_schema(
+        operation_summary='Alterna status de aprendido (Toggle)',
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={'posicao_id': openapi.Schema(type=openapi.TYPE_INTEGER)},
+            required=['posicao_id'],
+        )
+    )
+    def post(self, request):
+        user = request.user
+        posicao_id = request.data.get('posicao_id')
+        
+        if posicao_id is None:
+            return Response({'error': 'posicao_id é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        aprendizado, created = PosicaoAprendida.objects.get_or_create(user=user, posicao_id=posicao_id)
+        
+        # CORREÇÃO 2: Usa a chave 'status' que o seu Javascript espera
+        if not created:
+            aprendizado.delete()
+            return Response({'status': 'removido'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'status': 'adicionado'}, status=status.HTTP_201_CREATED)

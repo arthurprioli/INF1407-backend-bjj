@@ -9,5 +9,6 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
     path('password_reset/',include('django_rest_passwordreset.urls',namespace='password_reset')),
     path('register/', views.Registro.as_view(), name='register'),
-    path('logged_info/', views.Logged.as_view(), name='logged_account')
+    path('logged_info/', views.Logged.as_view(), name='logged_account'),
+    path('aprendidas/', views.GerenciarAprendizado.as_view(), name='gerenciar-aprendizado'),
 ]
