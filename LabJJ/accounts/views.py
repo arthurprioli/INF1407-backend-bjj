@@ -195,7 +195,7 @@ class Registro(generics.CreateAPIView):
         operation_description="Cria um novo usuário e retorna o token de autenticação",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=['username', 'password', 'password_confirm'],
+            required=['username', 'password', 'password_confirm', 'role'],
             properties={
                 'username': openapi.Schema(
                     type=openapi.TYPE_STRING,
@@ -219,6 +219,11 @@ class Registro(generics.CreateAPIView):
                     format=openapi.FORMAT_EMAIL,
                     description='Email opcional',
                     example='arthur@email.com'
+                ),
+                'role': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description='Função do usuário',
+                    example='estudante'
                 ),
             },
         ),
@@ -251,8 +256,8 @@ class Registro(generics.CreateAPIView):
         username = req.data.get("username")
         password = req.data.get("password")
         password_confirm = req.data.get("password_confirm")
-
         email = req.data.get("email", "")
+        role = req.data.get("role", "estudante")
 
         if not username or not password:
             return Response(
@@ -276,19 +281,15 @@ class Registro(generics.CreateAPIView):
             user = User.objects.create_user(
                 username=username,
                 password=password,
-                email=email
+                email=email,
             )
             user.save()
-
-            profile, created = UserProfile.objects.get_or_create(
-                user=user,
-                defaults={'role': 'estudante'}
-            )
-
-            if User.objects.count() == 1:
-                profile.role = 'admin'
+            if hasattr(user, 'userprofile'):
+                profile = user.userprofile
+                profile.role = role
                 profile.save()
-                print("ADMIN CRIADO!")
+            else:
+                UserProfile.objects.create(user=user, role=role)
 
             token, _ = Token.objects.get_or_create(user=user)
 
@@ -298,7 +299,7 @@ class Registro(generics.CreateAPIView):
                     "id": user.id,
                     "username": user.username,
                     "email": user.email or None,
-                    'role': user.userprofile.role
+                    'role': role,
                 }
             }, status=status.HTTP_201_CREATED)
 
