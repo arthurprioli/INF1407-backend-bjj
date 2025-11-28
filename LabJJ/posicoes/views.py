@@ -14,13 +14,9 @@ class PosicaoView(APIView):
     authentication_classes = [TokenAuthentication]
 
     def get_permissions(self):
-        """GET → qualquer logado | POST/PUT → apenas admin"""
         if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
             return [IsAdmin()]
         return [IsAuthenticated()]
-
-    # ESSA LINHA É OBRIGATÓRIA!
-    permission_classes = property(get_permissions)
 
     @swagger_auto_schema(
         operation_summary="Recupera uma posição específica ou todas",
@@ -38,7 +34,7 @@ class PosicaoView(APIView):
         return Response(BJJPosSerializer(posicoes, many=True).data)
 
     @swagger_auto_schema(
-        operation_summary="Cria nova posição (apenas admin)",
+        operation_summary="Cria nova posição",
         request_body=BJJPosSerializer,
         responses={201: BJJPosSerializer}
     )
@@ -50,7 +46,7 @@ class PosicaoView(APIView):
         return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
-        operation_summary="Atualiza posição (apenas admin)",
+        operation_summary="Atualiza posição",
         request_body=BJJPosSerializer
     )
     def put(self, request, id_arg):
@@ -70,10 +66,9 @@ class PosicoesView(APIView):
     authentication_classes = [TokenAuthentication]
 
     def get_permissions(self):
-        return [IsAdmin()] if self.request.method == 'DELETE' else [IsAuthenticated()]
-
-    # ESSA LINHA TAMBÉM É OBRIGATÓRIA!
-    permission_classes = property(get_permissions)
+        if self.request.method == 'DELETE':
+            return [IsAdmin()]
+        return [IsAuthenticated()]
 
     @swagger_auto_schema(operation_summary="Lista todas as posições")
     def get(self, request):
@@ -81,7 +76,7 @@ class PosicoesView(APIView):
         return Response(BJJPosSerializer(posicoes, many=True).data)
 
     @swagger_auto_schema(
-        operation_summary="Deleta múltiplas posições (apenas admin)",
+        operation_summary="Deleta múltiplas posições",
         request_body=openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_INTEGER))
     )
     def delete(self, request):
