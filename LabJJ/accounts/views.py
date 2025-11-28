@@ -11,11 +11,13 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.contrib.auth import login, logout
+from rest_framework.authentication import TokenAuthentication
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from accounts.models import UserProfile
+from accounts.serializers import UserProfileSerializer
 
 # Create your views here.
 
@@ -305,3 +307,33 @@ class Registro(generics.CreateAPIView):
                 {"error": "Erro ao criar usuário", "detail":str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+class Logged(APIView):
+    @swagger_auto_schema(
+        operation_description='Envia Todas as informações de Login do usuário a partir do token',
+        operation_summary='Envia informações do usuário logado',
+        manual_parameters=[
+            openapi.Parameter(
+            'Authorization',
+            openapi.IN_HEADER,
+            type=openapi.TYPE_STRING,
+            description='Token de autenticação no formato "token \<<i>valor do token</i>\>"',
+            default='token ',
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                description="Informações do usuário",
+            ),
+            status.HTTP_400_BAD_REQUEST: openapi.Response(
+                description="Erro na solicitação.",
+            ),
+        }
+    )
+    def get(self, req):
+        authentication_classes = [TokenAuthentication]
+        token = req.META.get('HTTP_AUTHORIZATION').split(' ')[1] # token
+        token_obj = Token.objects.get(key=token)
+        user = token_obj.user
+        profile = UserProfile.objects.get(user=user)
+        return Response(UserProfileSerializer(profile, many=False).data)
