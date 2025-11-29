@@ -42,9 +42,9 @@ O Post adiciona a posição à lista de posições aprendidas do aluno.
 Agora que terminamos de falar de views vamos falar de models. 
 As models são estruturas criadas dentro do django que são criadas equivalentemente dentro do banco de dados do sqlite. Portanto são estruturas muito importantes para fazer consultas e alterações de elementos no banco.
 Nossas models são:
-**UserProfile** : Model que vincula usuário com seu papel de aluno ou professor.
-**PosicaoAprendida** : Model que vincula uma posição com um usuário .
-**BJJPos** : Model da posição de JiuJitsu criada pelos professores e aprendida pelos alunos.
+<strong>UserProfile</strong> : Model que vincula usuário com seu papel de aluno ou professor.
+<strong>PosicaoAprendida</strong> : Model que vincula uma posição com um usuário .
+<strong>BJJPos</strong> : Model da posição de JiuJitsu criada pelos professores e aprendida pelos alunos.
 <h2>O que funcionou?</h2>
 Tudo que foi proposto no trabalho e mencionado acima é funcional. 
 <h1>Instalação</h1>
