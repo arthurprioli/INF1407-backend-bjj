@@ -41,37 +41,31 @@ O Post adiciona a posição à lista de posições aprendidas do aluno.
 <h2>Models</h2>
 Agora que terminamos de falar de views vamos falar de models. 
 As models são estruturas criadas dentro do django que são criadas equivalentemente dentro do banco de dados do sqlite. Portanto são estruturas muito importantes para fazer consultas e alterações de elementos no banco.
-Nossas models são:
-<strong>UserProfile</strong> : Model que vincula usuário com seu papel de aluno ou professor.
-<strong>PosicaoAprendida</strong> : Model que vincula uma posição com um usuário .
+Nossas models são:<br>
+<strong>UserProfile</strong> : Model que vincula usuário com seu papel de aluno ou professor.<br>
+<strong>PosicaoAprendida</strong> : Model que vincula uma posição com um usuário .<br>
 <strong>BJJPos</strong> : Model da posição de JiuJitsu criada pelos professores e aprendida pelos alunos.
 <h2>O que funcionou?</h2>
 Tudo que foi proposto no trabalho e mencionado acima é funcional. 
 <h1>Instalação</h1>
-Você irá abrir uma pasta no seu terminal e rodar esses comandos:
-```
-git clone https://github.com/arthurprioli/trabalho2-progweb.git
-git clone https://github.com/arthurprioli/INF1407-backend-bjj.git
-```
+Você irá abrir uma pasta no seu terminal e rodar esses comandos:<br>
+git clone https://github.com/arthurprioli/trabalho2-progweb.git<br>
+git clone https://github.com/arthurprioli/INF1407-backend-bjj.git<br>
 Dessa maneira você terá instalado os dois repositórios, de front e backend respectivamente.
 
 <h1>Instruções / Manual do usuário</h1>
-Após clonar os repositórios vc irá abrir dois terminais e entrar no caminho dos repositórios e executar esse comando no terminal do frontend:
-```
-cd .\frontend\public\
-python -m http.server 8080
-```
-e esses comando no do backend:
-```
-python -m venv .venv
-. .\.venv\Scripts\activate
+Após clonar os repositórios vc irá abrir dois terminais e entrar no caminho dos repositórios e executar esse comando no terminal do frontend:<br>
+cd .\frontend\public\<br>
+python -m http.server 8080<br>
+e esses comando no do backend:<br>
+python -m venv .venv<br>
+. .\.venv\Scripts\activate<br>
 pip install -r requirements.txt
 python .\LabJJ\manage.py runserver
-```
-Agora abra seu navegador e digite :
-http://127.0.0.1:8080
-para testar o swagger do backend é :
-http://127.0.0.1:8000/swagger/
+Agora abra seu navegador e digite :<br>
+http://127.0.0.1:8080<br>
+para testar o swagger do backend é :<br>
+http://127.0.0.1:8000/swagger/<br>
 
 
 ## Instruções para Rodar via Docker
